@@ -1,0 +1,277 @@
+datasource db {
+  provider = "postgresql" // Укажите здесь тип вашей базы данных (например, "postgresql", "mysql", "sqlite")
+  url      = env("DATABASE_URL") // Убедитесь, что у вас есть переменная окружения DATABASE_URL в вашем файле .env
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                       Int                        @id @default(autoincrement()) @map("id")
+  createdAt                DateTime                   @default(now()) @map("created_at")
+  updatedAt                DateTime                   @updatedAt @map("updated_at")
+  description              String                     @default("Описание отсутствует.")
+  name                     String
+  username                 String                     @unique @map("username")
+  password                 String                     @map("password")
+  avatar                   String                     @default("/uploads/default/avatarDefault.jpg") @map("avatar")
+  personalChats            PersonalChat[]             @relation("PersonalChatUser1")
+  personalChats2           PersonalChat[]             @relation("PersonalChatUser2")
+  channelMembers           ChannelMember[]
+  messages                 Message[]                  @relation("MessageSender")
+  groupMembers             GroupMember[]
+  lastOnline               DateTime                   @default(now()) @map("last_online")
+  isOnline                 Boolean                    @default(true)
+  MessageReactions         MessageReaction[]
+  // notificationId           Int?
+  MessageReadUser          MessageReadUser[]
+  PersonalChatNotification PersonalChatNotification[]
+}
+
+model PersonalChat {
+  id                       Int                        @id @default(autoincrement()) @map("id")
+  createdAt                DateTime                   @default(now()) @map("created_at")
+  updatedAt                DateTime                   @updatedAt @map("updated_at")
+  user1Id                  Int                        @map("user_1_id")
+  user2Id                  Int                        @map("user_2_id")
+  user1                    User                       @relation("PersonalChatUser1", fields: [user1Id], references: [id])
+  user2                    User                       @relation("PersonalChatUser2", fields: [user2Id], references: [id])
+  messages                 Message[]
+  media                    Media[]
+  PersonalChatNotification PersonalChatNotification[]
+  MessageReadUser          MessageReadUser[]
+}
+
+model Group {
+  id                Int                 @id @default(autoincrement()) @map("id")
+  name              String              @map("name")
+  description       String              @default(" ") @map("description")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  avatar            String              @default("/uploads/default/avatarDefault.jpg") @map("avatar")
+  members           GroupMember[]
+  roles             GroupRole[]
+  messages          Message[]
+  media             Media[]
+  private           Boolean             @default(false)
+  channel           Channel?
+  MessageReadGroup  MessageReadGroup[]
+  GroupNotification GroupNotification[]
+  qtyUsers          Int                 @default(1) @map("qty_users")
+}
+
+model GroupMember {
+  id          Int       @id @default(autoincrement()) @map("id")
+  userId      Int       @map("user_id")
+  groupId     Int       @map("group_id")
+  joinedAt    DateTime  @default(now()) @map("joined_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group       Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupRoleId Int
+  groupRole   GroupRole @relation(fields: [groupRoleId], references: [id], onDelete: Cascade)
+  isMuted     Boolean   @default(false)
+
+  MessageReadGroup MessageReadGroup[]
+
+  GroupNotification GroupNotification[]
+}
+
+model GroupRole {
+  id           Int                   @id @default(autoincrement())
+  name         String
+  groupId      Int
+  group        Group                 @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupMembers GroupMember[]
+  permissions  GroupRolePermission[]
+  isSystemRole Boolean
+}
+
+model GroupRolePermission {
+  id           Int        @id @default(autoincrement())
+  groupRoleId  Int
+  permissionId Int
+  groupRole    GroupRole  @relation(fields: [groupRoleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id])
+}
+
+model ChannelRolePermission {
+  id            Int         @id @default(autoincrement())
+  channelRoleId Int
+  permissionId  Int
+  channelRole   ChannelRole @relation(fields: [channelRoleId], references: [id], onDelete: Cascade)
+  permission    Permission  @relation(fields: [permissionId], references: [id])
+}
+
+model Channel {
+  id                  Int                   @id @default(autoincrement()) @map("id")
+  name                String                @map("name")
+  description         String                @map("description")
+  createdAt           DateTime              @default(now()) @map("created_at")
+  updatedAt           DateTime              @updatedAt @map("updated_at")
+  avatar              String                @default("/uploads/default/avatarDefault.jpg") @map("avatar")
+  members             ChannelMember[]
+  roles               ChannelRole[]
+  messages            Message[]
+  media               Media[]
+  private             Boolean               @default(false)
+  groupId             Int?                  @unique @map("group_id")
+  discussion          Group?                @relation(fields: [groupId], references: [id])
+  MessageReadChannel  MessageReadChannel[]
+  ChannelNotification ChannelNotification[]
+  qtyUsers            Int                   @default(1) @map("qty_users")
+}
+
+model ChannelMember {
+  id            Int         @id @default(autoincrement()) @map("id")
+  userId        Int         @map("user_id")
+  channelId     Int         @map("channel_id")
+  joinedAt      DateTime    @default(now()) @map("joined_at")
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel       Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channelRoleId Int
+  channelRole   ChannelRole @relation(fields: [channelRoleId], references: [id], onDelete: Cascade)
+  isMuted       Boolean     @default(false)
+
+  MessageReadChannel  MessageReadChannel[]
+  ChannelNotification ChannelNotification[]
+}
+
+model ChannelRole {
+  id             Int                     @id @default(autoincrement())
+  name           String
+  channelId      Int
+  channel        Channel                 @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channelMembers ChannelMember[]
+  permissions    ChannelRolePermission[]
+  isSystemRole   Boolean
+}
+
+model Message {
+  id               Int                  @id @default(autoincrement()) @map("id")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+  content          String               @default(" ") @map("content")
+  chatId           Int?                 @map("chat_id")
+  groupId          Int?                 @map("group_id")
+  channelId        Int?                 @map("channel_id")
+  senderId         Int                  @map("sender_id")
+  isRead           Boolean              @default(false) @map("is_read")
+  chat             PersonalChat?        @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  group            Group?               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  channel          Channel?             @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender           User                 @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  media            Media[]
+  MessageReactions MessageReaction[]
+  readUsers        MessageReadUser[]
+  readGroups       MessageReadGroup[]
+  readChannels     MessageReadChannel[]
+}
+
+model MessageReadUser {
+  id             Int           @id @default(autoincrement())
+  messageId      Int
+  userId         Int
+  message        Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  personalChatId Int?
+  personalChat   PersonalChat? @relation(fields: [personalChatId], references: [id])
+}
+
+model MessageReadGroup {
+  id        Int         @id @default(autoincrement())
+  messageId Int
+  groupId   Int
+  message   Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  group     Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  memberId  Int
+  member    GroupMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+model MessageReadChannel {
+  id        Int           @id @default(autoincrement())
+  messageId Int
+  channelId Int
+  message   Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  channel   Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  memberId  Int
+  member    ChannelMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+model Media {
+  id        Int           @id @default(autoincrement()) @map("id")
+  createdAt DateTime      @default(now()) @map("created_at")
+  url       String        @map("url")
+  type      MediaTypes    @map("type")
+  messageId Int           @map("message_id")
+  chatId    Int?          @map("chat_id")
+  groupId   Int?          @map("group_id")
+  channelId Int?          @map("channel_id")
+  message   Message       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  chat      PersonalChat? @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  group     Group?        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  channel   Channel?      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+}
+
+model PersonalChatNotification {
+  id             Int          @id @default(autoincrement()) @map("id")
+  userId         Int          @map("user_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  count          Int          @default(0)
+  personalChatId Int
+  personalChat   PersonalChat @relation(fields: [personalChatId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GroupNotification {
+  id        Int         @id @default(autoincrement()) @map("id")
+  memberId  Int         @map("member_id")
+  createdAt DateTime    @default(now()) @map("created_at")
+  count     Int         @default(0)
+  groupId   Int
+  group     Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member    GroupMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+model ChannelNotification {
+  id        Int           @id @default(autoincrement()) @map("id")
+  memberId  Int           @map("member_id")
+  createdAt DateTime      @default(now()) @map("created_at")
+  count     Int           @default(0)
+  channelId Int
+  channel   Channel       @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  member    ChannelMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+}
+
+model MessageReaction {
+  id        Int       @id @default(autoincrement()) @map("id")
+  messageId Int       @map("message_id")
+  message   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    Int       @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reactions Reactions
+}
+
+model Permission {
+  id           Int                     @id @default(autoincrement())
+  action       String
+  description  String?
+  groupRoles   GroupRolePermission[]
+  channelRoles ChannelRolePermission[]
+}
+
+enum Reactions {
+  Like
+  DisLike
+  Heart
+  Fire
+  Smile
+  Poo
+  Angry
+  Ok
+}
+
+enum MediaTypes {
+  video
+  image
+}
