@@ -12,15 +12,14 @@ import { GroupService } from 'src/group/group.service';
 import { permissionsVariant } from 'src/group/enums/premissionEnum';
 import { ChannelService } from 'src/channel/channel.service';
 import { AttachmentDto } from './dto/attachment.dto';
-import { MessagesGateway } from './message.gateway';
-
+import { UserGateway } from 'src/user/user.gateway';
 @Injectable()
 export class MessageService {
   constructor(
     private prisma: PrismaService,
     private groupService: GroupService,
     private channelService: ChannelService,
-    private readonly messagesGateway: MessagesGateway,
+    private userGateway: UserGateway,
   ) {}
   async create(userId: number, dto: CreateMessageDto) {
     if (dto.groupId) {
@@ -121,6 +120,10 @@ export class MessageService {
           },
         },
       });
+      this.userGateway.handleChatUpdated('chat', dto.chatId, {
+        event: 'notification',
+        incrementOrDecrement:'increment'
+      });
     } else if (dto.groupId) {
       const member = await this.prisma.groupMember.findFirst({
         where: {
@@ -140,6 +143,10 @@ export class MessageService {
             increment: 1,
           },
         },
+      });
+      this.userGateway.handleChatUpdated('group', dto.groupId, {
+        event: 'notification',
+        incrementOrDecrement:'increment'
       });
     } else if (dto.channelId) {
       const member = await this.prisma.channelMember.findFirst({
@@ -161,6 +168,10 @@ export class MessageService {
           },
         },
       });
+      this.userGateway.handleChatUpdated('channel', dto.channelId, {
+        event: 'notification',
+        incrementOrDecrement:'increment'
+      });
     }
     const message = await this.prisma.message.create({
       data: {
@@ -168,16 +179,18 @@ export class MessageService {
         senderId: userId,
       },
     });
-    // this.messagesGateway.handleMessage({
+    // this.userGateway.handleMessage({
     //   chatId: message.chatId,
     //   messageId: message.id,
     // });
     const type = dto.channelId ? 'channel' : dto.groupId ? 'group' : 'chat';
     const typeId = dto.channelId || dto.groupId || dto.chatId;
-    this.messagesGateway.handleMessage(type, {
-      smthId: typeId,
+    this.userGateway.handleChatUpdated(type, typeId, {
       messageId: message.id,
+      event: 'message',
+      newMessageData: message,
     });
+
     return message;
   }
   async edit(id: number, newContent: string, userId: number) {
@@ -194,7 +207,7 @@ export class MessageService {
       where: {
         id,
       },
-      data: { content: newContent },
+      data: { content: newContent, isEdit: true },
     });
     const type = newMessage.channelId
       ? 'channel'
@@ -203,9 +216,10 @@ export class MessageService {
         : 'chat';
     const typeId =
       newMessage.channelId || newMessage.groupId || newMessage.chatId;
-    this.messagesGateway.handleEditMessage(type, {
-      smthId: typeId,
+    this.userGateway.handleChatUpdated(type, typeId, {
       messageId: newMessage.id,
+      event: 'message-edit',
+      newContent: newContent,
     });
     return newMessage;
   }
@@ -383,11 +397,12 @@ export class MessageService {
         : 'chat';
     const typeId =
       deleteMessage.channelId || deleteMessage.groupId || deleteMessage.chatId;
-    this.messagesGateway.handleDeleteMessage(type, { smthId: typeId });
+    this.userGateway.handleChatUpdated(type, typeId, {
+      event: 'message-delete',
+      messageId: deleteMessage.id,
+    });
     return deleteMessage;
   }
-
-  
 
   async getMessage(userId: number, id: number) {
     const message = await this.prisma.message.findUnique({
@@ -493,7 +508,10 @@ export class MessageService {
           ? 'group'
           : 'chat';
       const typeId = message.channelId || message.groupId || message.chatId;
-      this.messagesGateway.handleMessageStatus(type, typeId, message.id);
+      this.userGateway.handleChatUpdated(type, typeId, {
+        event: 'message-status',
+        messageId: message.id,
+      });
     }
 
     if (message.channelId) {
@@ -536,8 +554,11 @@ export class MessageService {
           },
         });
 
-        this.messagesGateway.handleNotification('channel',message.channelId)
-        return mesReadChannel
+        this.userGateway.handleChatUpdated('channel', message.channelId, {
+          event: 'notification',
+          incrementOrDecrement: 'decrement',
+        });
+        return mesReadChannel;
       }
     }
 
@@ -578,10 +599,12 @@ export class MessageService {
             memberId: member.id,
           },
         });
-        this.messagesGateway.handleNotification('group',message.groupId)
-        return mesReadGroup
+        this.userGateway.handleChatUpdated('group', message.groupId, {
+          event: 'notification',
+          incrementOrDecrement: 'decrement',
+        });
+        return mesReadGroup;
       }
-      
     }
 
     if (message.chatId) {
@@ -611,8 +634,11 @@ export class MessageService {
             personalChatId: message.chatId,
           },
         });
-        this.messagesGateway.handleChatUpdated('chat',message.chatId,{event:"notification"})
-        return mesReadChat
+        this.userGateway.handleChatUpdated('chat', message.chatId, {
+          event: 'notification',
+          incrementOrDecrement: 'decrement',
+        });
+        return mesReadChat;
       }
     }
   }

@@ -15,10 +15,7 @@ export class PersonalChatService {
     const personalChat = await this.prisma.personalChat.findUnique({
       where: {
         id,
-        OR: [
-          { user1Id: userId },
-          { user2Id: userId },
-        ],
+        OR: [{ user1Id: userId }, { user2Id: userId }],
       },
       include: {
         messages: {
@@ -29,12 +26,11 @@ export class PersonalChatService {
         },
       },
     });
-    if(!personalChat){
-      throw new BadRequestException('Ошибка!')
+    if (!personalChat) {
+      throw new BadRequestException('Ошибка!');
     }
-    return personalChat
+    return personalChat;
   }
-  
 
   async create(dto: CreateChatDto, userId: number) {
     let isFirstUserReal = await this.userService.getById(dto.user1Id);
@@ -84,8 +80,8 @@ export class PersonalChatService {
       },
     });
 
-    this.userGateway.addUser('chat', dto.user1Id, chat.id);
-    this.userGateway.addUser('chat', dto.user2Id, chat.id);
+    this.userGateway.handleChangeUserChats('chat', dto.user1Id, chat.id, 'add');
+    this.userGateway.handleChangeUserChats('chat', dto.user2Id, chat.id, 'add');
     return chat;
   }
 
@@ -122,8 +118,8 @@ export class PersonalChatService {
       },
     });
 
-    this.userGateway.deleteUser('chat', chat.user1Id, chat.id);
-    this.userGateway.deleteUser('chat', chat.user2Id, chat.id);
+    this.userGateway.handleChangeUserChats('chat', chat.user1Id, chat.id,'delete');
+    this.userGateway.handleChangeUserChats('chat', chat.user2Id, chat.id,'delete');
     return deleteChat;
   }
 }

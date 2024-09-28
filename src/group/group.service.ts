@@ -174,7 +174,7 @@ export class GroupService {
         groupId: dto.groupId,
       },
     });
-    this.userGateway.addUser('group', dto.userId, dto.groupId);
+    this.userGateway.handleChangeUserChats('group', dto.userId, dto.groupId,'add');
     await this.prisma.group.update({
       where:{
         id:dto.groupId
@@ -243,7 +243,7 @@ export class GroupService {
         id: isUserInGroup.id,
       },
     });
-    this.userGateway.deleteUser('group', dto.userId, dto.groupId);
+    this.userGateway.handleChangeUserChats('group', dto.userId, dto.groupId,'delete');
     await this.prisma.group.update({
       where:{
         id:dto.groupId

@@ -38,26 +38,15 @@ export class UserGateway
   @SubscribeMessage('joinPersonalRoom')
   joinPersonalRoom(socket: Socket, userId: number) {
     socket.join(`user_${userId}`);
+  
+
   }
 
   @SubscribeMessage('leavePersonalRoom')
   leavePersonalRoom(socket: Socket, userId: number) {
     socket.leave(`user_${userId}`);
+
   }
-
-  // addUser(type: TYPE, userId: number, smthId: number) {
-  //   this.server.to(`user_${userId}`).emit('add-user', {
-  //     type,
-  //     smthId,
-  //   });
-  // }
-
-  // deleteUser(type: TYPE, userId: number, smthId: number) {
-  //   this.server.to(`user_${userId}`).emit('delete-user', {
-  //     type,
-  //     smthId,
-  //   });
-  // }
 
   handleChangeUserChats(
     type: TYPE,
@@ -76,36 +65,70 @@ export class UserGateway
     this.server.to(`user_${userId}`).emit('edit-user');
   }
 
-  // @SubscribeMessage('subscribeToStatus')
-  // handleSubscribeToStatus(socket: Socket, data: { targetUserIds: number[] }) {
-  //   const { targetUserIds } = data;
-  //   console.log('sub', data.targetUserIds, socket.id); // Добавь socket.id для отслеживания подключений
-  //   targetUserIds.forEach((userId) => {
-  //     socket.join(`status_${userId}`);
-  //   });
-  // }
+  handleChatUpdated(
+    type: TYPE,
+    smthId: number,
+    data: {
+      event:
+        | 'message'
+        | 'message-delete'
+        | 'message-status'
+        | 'notification'
+        | 'message-edit';
+      messageId?: number;
+      userId?: number;
+      newContent?:string;
+      newMessageData?:any;
+      incrementOrDecrement?:'increment' | 'decrement'      
+    },
+  ) {
+    this.server.to(`${type}_${smthId}`).emit('chat-updated', { ...data, smthId, type });
+    console.log(`${type}_${smthId}`)
+  }
 
-  // // Отписка от статусов пользователей (при закрытии чата, группы или канала)
-  // @SubscribeMessage('unsubscribeFromStatus')
-  // handleUnsubscribeFromStatus(
-  //   socket: Socket,
-  //   @MessageBody() data: { targetUserIds: number[] },
-  // ) {
-  //   const { targetUserIds } = data;
-  //   targetUserIds.forEach((userId) => {
-  //     socket.leave(`status_${userId}`);
-  //   });
-  // }
+  @SubscribeMessage('subscribeToStatus')
+  handleSubscribeToStatus(socket: Socket, data: { targetUserIds: number[] }) {
+    const { targetUserIds } = data;
+    console.log('sub', data.targetUserIds, socket.id);
+    targetUserIds.forEach((userId) => {
+      socket.join(`status_${userId}`);
+    });
+  }
 
-  // // Когда пользователь становится онлайн
-  // handleOnline(userId: number) {
-  //   // Отправляем "онлайн" только тем, кто подписан на этого пользователя
-  //   this.server.to(`status_${userId}`).emit('set-online', userId);
-  // }
+  @SubscribeMessage('unsubscribeFromStatus')
+  handleUnsubscribeFromStatus(
+    socket: Socket,
+    @MessageBody() data: { targetUserIds: number[] },
+  ) {
+    const { targetUserIds } = data;
+    targetUserIds.forEach((userId) => {
+      socket.leave(`status_${userId}`);
+    });
+  }
 
-  // // Когда пользователь становится офлайн
-  // handleOffline(userId: number) {
-  //   // Отправляем "офлайн" только тем, кто подписан на этого пользователя
-  //   this.server.to(`status_${userId}`).emit('set-offline', userId);
-  // }
+  changeOnline(userId: number, event: 'online' | 'offline') {
+    this.server.to(`status_${userId}`).emit(`set-status-online`);
+  }
+
+  @SubscribeMessage('typing')
+  handleTyping(dto: { type: TYPE; smthId: number; writersId: number }) {
+    this.server.to(`${dto.type}_${dto.smthId}`).emit('typing', dto.writersId);
+  }
+
+  @SubscribeMessage('typing-stop')
+  handleStopTyping(dto: { type: TYPE; smthId: number; writersId: number }) {
+    this.server
+      .to(`${dto.type}_${dto.smthId}`)
+      .emit('typing-stop', dto.writersId);
+  }
+
+  @SubscribeMessage('join-room')
+  joinRoom(socket: Socket, payload: { type: TYPE; smthId: number }) {
+    socket.join(`${payload.type}_${payload.smthId}`);
+  }
+
+  @SubscribeMessage('leave-room')
+  leaveRoom(socket: Socket, payload: { type: TYPE; smthId: number }) {
+    socket.leave(`${payload.type}_${payload.smthId}`);
+  }
 }

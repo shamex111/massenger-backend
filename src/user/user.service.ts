@@ -114,7 +114,7 @@ export class UserService {
           isOnline: false,
         },
       });
-      this.userGateway.handleOffline(user.id);
+      this.userGateway.changeOnline(user.id, 'offline');
     } else {
       await this.prisma.user.update({
         where: {
@@ -124,7 +124,7 @@ export class UserService {
           isOnline: true,
         },
       });
-      this.userGateway.handleOnline(user.id);
+      this.userGateway.changeOnline(user.id, 'online');
     }
   }
 

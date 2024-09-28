@@ -181,7 +181,7 @@ export class ChannelService {
         channelId: dto.channelId,
       },
     });
-    this.userGateway.addUser('group', dto.userId, dto.channelId);
+    this.userGateway.handleChangeUserChats('group', dto.userId, dto.channelId,'add');
     await this.prisma.channel.update({
       where:{
         id:dto.channelId
@@ -250,7 +250,7 @@ export class ChannelService {
         id: isUserInChannel.id,
       },
     });
-    this.userGateway.deleteUser('channel', dto.userId, dto.channelId);
+    this.userGateway.handleChangeUserChats('channel', dto.userId, dto.channelId,'delete');
     await this.prisma.channel.update({
       where:{
         id:dto.channelId
