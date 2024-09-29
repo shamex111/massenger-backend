@@ -98,14 +98,14 @@ export class UserService {
     }
   }
 
-  async setOnlineStatus(id: number) {
+  async setOnlineStatus(id: number,action:'online' | 'offline') {
     const user = await this.prisma.user.findUnique({
       where: {
         id: id,
       },
     });
     if (!user) throw new BadRequestException('Пользователя несуществует!');
-    if (user.isOnline === true) {
+    if (action === 'offline') {
       await this.prisma.user.update({
         where: {
           id: user.id,
@@ -114,6 +114,7 @@ export class UserService {
           isOnline: false,
         },
       });
+      this.updateLastOnline(id)
       this.userGateway.changeOnline(user.id, 'offline');
     } else {
       await this.prisma.user.update({

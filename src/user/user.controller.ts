@@ -66,7 +66,8 @@ export class UserController {
 
   @UseGuards(AuthGuard('jwt'))
   @Patch('/set-online-status')
-  async setOnlineStatus(@CurrentUser('id') id: number) {
-    return this.userService.setOnlineStatus(id);
+  async setOnlineStatus(@CurrentUser('id') id: number,@Body() dto:{action:'offline' | 'online'}) {
+    console.log(id,dto.action)
+    return this.userService.setOnlineStatus(id,dto.action);
   }
 }

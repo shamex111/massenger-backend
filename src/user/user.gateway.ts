@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import {
   MessageBody,
   OnGatewayConnection,
@@ -10,6 +10,9 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { EventEmitter } from 'events';
+import { UserService } from './user.service';
+import { PrismaService } from 'src/prisma.service';
+import { returnUserObject } from './objects/returnUser.object';
 type TYPE = 'channel' | 'group' | 'chat';
 
 EventEmitter.defaultMaxListeners = 14;
@@ -19,6 +22,8 @@ export class UserGateway
 {
   @WebSocketServer()
   server: Server;
+
+  constructor(private prisma: PrismaService) {}
 
   private readonly logger = new Logger(UserGateway.name);
   afterInit(server: Server) {
@@ -38,14 +43,11 @@ export class UserGateway
   @SubscribeMessage('joinPersonalRoom')
   joinPersonalRoom(socket: Socket, userId: number) {
     socket.join(`user_${userId}`);
-  
-
   }
 
   @SubscribeMessage('leavePersonalRoom')
   leavePersonalRoom(socket: Socket, userId: number) {
     socket.leave(`user_${userId}`);
-
   }
 
   handleChangeUserChats(
@@ -77,13 +79,15 @@ export class UserGateway
         | 'message-edit';
       messageId?: number;
       userId?: number;
-      newContent?:string;
-      newMessageData?:any;
-      incrementOrDecrement?:'increment' | 'decrement'      
+      newContent?: string;
+      newMessageData?: any;
+      incrementOrDecrement?: 'increment' | 'decrement';
     },
   ) {
-    this.server.to(`${type}_${smthId}`).emit('chat-updated', { ...data, smthId, type });
-    console.log(`${type}_${smthId}`)
+    this.server
+      .to(`${type}_${smthId}`)
+      .emit('chat-updated', { ...data, smthId, type });
+    console.log(`${type}_${smthId}`);
   }
 
   @SubscribeMessage('subscribeToStatus')
@@ -107,9 +111,12 @@ export class UserGateway
   }
 
   changeOnline(userId: number, event: 'online' | 'offline') {
-    this.server.to(`status_${userId}`).emit(`set-status-online`);
+    this.server
+      .to(`status_${userId}`)
+      .emit(`set-status-online`, { userId, event });
   }
 
+  
   @SubscribeMessage('typing')
   handleTyping(dto: { type: TYPE; smthId: number; writersId: number }) {
     this.server.to(`${dto.type}_${dto.smthId}`).emit('typing', dto.writersId);
@@ -132,3 +139,4 @@ export class UserGateway
     socket.leave(`${payload.type}_${payload.smthId}`);
   }
 }
+// /set-online
