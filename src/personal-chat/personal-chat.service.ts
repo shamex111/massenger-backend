@@ -22,6 +22,11 @@ export class PersonalChatService {
           orderBy: {
             createdAt: 'desc',
           },
+          include: {
+            readUsers: {},
+            readGroups: {},
+            readChannels: {},
+          },
           take: 20,
         },
       },
@@ -118,8 +123,18 @@ export class PersonalChatService {
       },
     });
 
-    this.userGateway.handleChangeUserChats('chat', chat.user1Id, chat.id,'delete');
-    this.userGateway.handleChangeUserChats('chat', chat.user2Id, chat.id,'delete');
+    this.userGateway.handleChangeUserChats(
+      'chat',
+      chat.user1Id,
+      chat.id,
+      'delete',
+    );
+    this.userGateway.handleChangeUserChats(
+      'chat',
+      chat.user2Id,
+      chat.id,
+      'delete',
+    );
     return deleteChat;
   }
 }

@@ -39,6 +39,11 @@ export class GroupService {
               createdAt: 'desc',
             },
             take: 20,
+            include:{
+              readUsers:{},
+              readGroups:{},
+              readChannels:{},
+            }
           },
           members: {},
           roles: {},

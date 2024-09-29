@@ -163,8 +163,8 @@ model Message {
   channel          Channel?             @relation(fields: [channelId], references: [id], onDelete: Cascade)
   sender           User                 @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   media            Media[]
-  MessageReactions MessageReaction[]
-  readUsers        MessageReadUser[]
+  MessageReactions MessageReaction[] 
+  readUsers        MessageReadUser[] 
   readGroups       MessageReadGroup[]
   readChannels     MessageReadChannel[]
 }

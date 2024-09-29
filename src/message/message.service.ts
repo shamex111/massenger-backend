@@ -122,7 +122,7 @@ export class MessageService {
       });
       this.userGateway.handleChatUpdated('chat', dto.chatId, {
         event: 'notification',
-        incrementOrDecrement:'increment'
+        incrementOrDecrement: 'increment',
       });
     } else if (dto.groupId) {
       const member = await this.prisma.groupMember.findFirst({
@@ -146,7 +146,7 @@ export class MessageService {
       });
       this.userGateway.handleChatUpdated('group', dto.groupId, {
         event: 'notification',
-        incrementOrDecrement:'increment'
+        incrementOrDecrement: 'increment',
       });
     } else if (dto.channelId) {
       const member = await this.prisma.channelMember.findFirst({
@@ -170,13 +170,18 @@ export class MessageService {
       });
       this.userGateway.handleChatUpdated('channel', dto.channelId, {
         event: 'notification',
-        incrementOrDecrement:'increment'
+        incrementOrDecrement: 'increment',
       });
     }
     const message = await this.prisma.message.create({
       data: {
         ...dto,
         senderId: userId,
+      },
+      include: {
+        readUsers: {},
+        readGroups: {},
+        readChannels: {},
       },
     });
     // this.userGateway.handleMessage({

@@ -38,8 +38,45 @@ export class UserService {
   async getProfile(username: string) {
     const user = await this.prisma.user.findUnique({
       where: { username },
-      select: returnUserObject,
+      include: {
+        channelMembers: {
+          include: {
+            channelRole: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: {},
+                  },
+                },
+              },
+            },
+          },
+        },
+        groupMembers: {
+          include: {
+            groupRole: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: {},
+                  },
+                },
+              },
+            },
+          },
+        },
+        personalChats: true, // Если вам нужны все поля, просто ставьте true
+        personalChats2: true,
+        PersonalChatNotification: true,
+        MessageReadUser: true,
+      },
     });
+
+    // Обработка случая, если пользователь не найден
+    if (!user) {
+      throw new Error(`User with username ${username} not found`);
+    }
+
     return user;
   }
 
@@ -98,7 +135,7 @@ export class UserService {
     }
   }
 
-  async setOnlineStatus(id: number,action:'online' | 'offline') {
+  async setOnlineStatus(id: number, action: 'online' | 'offline') {
     const user = await this.prisma.user.findUnique({
       where: {
         id: id,
@@ -114,7 +151,7 @@ export class UserService {
           isOnline: false,
         },
       });
-      this.updateLastOnline(id)
+      this.updateLastOnline(id);
       this.userGateway.changeOnline(user.id, 'offline');
     } else {
       await this.prisma.user.update({
