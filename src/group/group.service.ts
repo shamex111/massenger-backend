@@ -22,12 +22,19 @@ export class GroupService {
     private userGateway: UserGateway,
   ) {}
   async getById(userId: number, id: number) {
-    const userMember = this.prisma.groupMember.findFirst({
+    const userMember = await this.prisma.groupMember.findFirst({
       where: {
         userId,
         groupId: id,
       },
     });
+    const notification = await this.prisma.groupNotification.findFirst({
+      where: {
+        memberId: userMember.id,
+        groupId: id,
+      },
+    });
+    const count:number = notification.count >= 20 ? notification.count + 20: 20 
     if (userMember) {
       return this.prisma.group.findUnique({
         where: {
@@ -38,12 +45,12 @@ export class GroupService {
             orderBy: {
               createdAt: 'desc',
             },
-            take: 20,
-            include:{
-              readUsers:{},
-              readGroups:{},
-              readChannels:{},
-            }
+            take: count,
+            include: {
+              readUsers: {},
+              readGroups: {},
+              readChannels: {},
+            },
           },
           members: {},
           roles: {},
@@ -179,17 +186,22 @@ export class GroupService {
         groupId: dto.groupId,
       },
     });
-    this.userGateway.handleChangeUserChats('group', dto.userId, dto.groupId,'add');
+    this.userGateway.handleChangeUserChats(
+      'group',
+      dto.userId,
+      dto.groupId,
+      'add',
+    );
     await this.prisma.group.update({
-      where:{
-        id:dto.groupId
+      where: {
+        id: dto.groupId,
       },
       data: {
         qtyUsers: {
           increment: 1,
         },
       },
-    })
+    });
     return member;
   }
 
@@ -248,17 +260,22 @@ export class GroupService {
         id: isUserInGroup.id,
       },
     });
-    this.userGateway.handleChangeUserChats('group', dto.userId, dto.groupId,'delete');
+    this.userGateway.handleChangeUserChats(
+      'group',
+      dto.userId,
+      dto.groupId,
+      'delete',
+    );
     await this.prisma.group.update({
-      where:{
-        id:dto.groupId
+      where: {
+        id: dto.groupId,
       },
       data: {
         qtyUsers: {
           decrement: 1,
         },
       },
-    })
+    });
     return deleteUser;
   }
 

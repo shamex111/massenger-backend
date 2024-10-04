@@ -24,12 +24,19 @@ export class ChannelService {
     private userGateway: UserGateway,
   ) {}
   async getById(userId: number, id: number) {
-    const userMember = this.prisma.channelMember.findFirst({
+    const userMember = await this.prisma.channelMember.findFirst({
       where: {
         userId,
         channelId: id,
       },
     });
+    const notification = await this.prisma.channelNotification.findFirst({
+      where: {
+        memberId: userMember.id,
+        channelId: id,
+      },
+    });
+    const count:number = notification.count >= 20 ? notification.count + 20: 20 
     if (userMember) {
       return this.prisma.channel.findUnique({
         where: {
@@ -40,7 +47,7 @@ export class ChannelService {
             orderBy: {
               createdAt: 'desc',
             },
-            take: 20,
+            take: count,
             include:{
               readUsers:{},
               readGroups:{},

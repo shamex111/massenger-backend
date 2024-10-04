@@ -31,9 +31,13 @@ export class MessageController {
   }
 
   @UseGuards(AuthGuard('jwt'))
-  @Get(':id')
-  async getMessage(@Param('id') id: string, @CurrentUser('id') userId: number) {
-    return this.messageService.getMessage(userId, parseInt(id));
+  @Post('get-messages')
+  async getMessages(
+    @CurrentUser('id') userId: number,
+    @Body()
+    dto: { lastMessageId: number; count: number; smthId: number; type: any },
+  ) {
+    return this.messageService.getMessages(userId, dto);
   }
 
   @UseGuards(AuthGuard('jwt'))

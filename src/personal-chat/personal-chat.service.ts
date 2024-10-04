@@ -12,6 +12,13 @@ export class PersonalChatService {
     private userGateway: UserGateway,
   ) {}
   async getById(userId: number, id: number) {
+    const notification = await this.prisma.personalChatNotification.findFirst({
+      where: {
+        personalChatId: id,
+        userId:userId
+      },
+    });
+    const count:number = notification.count >= 20 ? notification.count + 20: 20 
     const personalChat = await this.prisma.personalChat.findUnique({
       where: {
         id,
@@ -27,7 +34,7 @@ export class PersonalChatService {
             readGroups: {},
             readChannels: {},
           },
-          take: 20,
+          take: count,
         },
       },
     });

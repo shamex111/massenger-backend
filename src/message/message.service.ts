@@ -123,6 +123,7 @@ export class MessageService {
       this.userGateway.handleChatUpdated('chat', dto.chatId, {
         event: 'notification',
         incrementOrDecrement: 'increment',
+        userId:userId
       });
     } else if (dto.groupId) {
       const member = await this.prisma.groupMember.findFirst({
@@ -147,6 +148,7 @@ export class MessageService {
       this.userGateway.handleChatUpdated('group', dto.groupId, {
         event: 'notification',
         incrementOrDecrement: 'increment',
+        userId:userId
       });
     } else if (dto.channelId) {
       const member = await this.prisma.channelMember.findFirst({
@@ -171,6 +173,7 @@ export class MessageService {
       this.userGateway.handleChatUpdated('channel', dto.channelId, {
         event: 'notification',
         incrementOrDecrement: 'increment',
+        userId:userId
       });
     }
     const message = await this.prisma.message.create({
@@ -409,9 +412,49 @@ export class MessageService {
     return deleteMessage;
   }
 
-  async getMessage(userId: number, id: number) {
-    const message = await this.prisma.message.findUnique({
-      where: { id: id },
+  async getMessages(
+    userId: number,
+    dto: {
+      lastMessageId: number;
+      count: number;
+      smthId: number;
+      type: 'chat' | 'group' | 'channel';
+    },
+  ) {
+    const { lastMessageId, count, smthId, type } = dto;
+    const whereCondition: any = {};
+    
+    switch (type) {
+      case 'group':
+        whereCondition.groupId = smthId;
+        break;
+      case 'channel':
+        whereCondition.channelId = smthId;
+        break;
+      case 'chat':
+        whereCondition.chatId = smthId;
+        break;
+      default:
+        throw new BadRequestException('Неверный тип запроса!');
+    }
+  
+    const lastMessage = await this.prisma.message.findUnique({
+      where: { id: lastMessageId },
+    });
+  
+    if (!lastMessage) {
+      throw new NotFoundException('Последнее сообщение не найдено!');
+    }
+  
+    const messages = await this.prisma.message.findMany({
+      where: {
+        ...whereCondition,
+        createdAt: {
+          lt: lastMessage.createdAt,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: count,
       include: {
         group: {
           include: {
@@ -438,46 +481,52 @@ export class MessageService {
           },
         },
         readUsers: {},
-        readGroups: {},
         readChannels: {},
+        readGroups: {},
       },
     });
-
-    if (!message) throw new NotFoundException('Сообщение не найдено!');
-
-    if (message.groupId) {
-      if (!message.group) throw new NotFoundException('Группа не найдена!');
-      const userInGroup = message.group.members.some(
-        (member) => member.user.id === userId,
-      );
-      if (!userInGroup)
-        throw new ForbiddenException(
-          'У пользователя нет доступа к этому сообщению в группе!',
-        );
-    } else if (message.channelId) {
-      if (!message.channel) throw new NotFoundException('Канал не найден!');
-      const userInChannel = message.channel.members.some(
-        (member) => member.user.id === userId,
-      );
-      if (!userInChannel)
-        throw new ForbiddenException(
-          'У пользователя нет доступа к этому сообщению в канале!',
-        );
-    } else if (message.chatId) {
-      if (!message.chat) throw new NotFoundException('Чат не найден!');
-      let isUserInChat = message.chat.user1.id === userId;
-      !isUserInChat ? (isUserInChat = message.chat.user2.id === userId) : '';
-      if (!isUserInChat)
-        throw new ForbiddenException(
-          'У пользователя нет доступа к этому сообщению в чате!',
-        );
-    } else {
-      throw new ForbiddenException(
-        'Сообщение не относится ни к группе, ни к каналу, ни к чату!',
-      );
+  
+    // Если сообщений нет, дальнейшая проверка прав не имеет смысла
+    if (messages.length === 0) {
+      return [];
     }
-    return message;
+  
+    // Проверка доступа в группе
+    if (type === 'group') {
+      const group = messages[0].group;
+      if (!group) throw new NotFoundException('Группа не найдена!');
+      const userInGroup = group.members.some(
+        (member) => member.user.id === userId,
+      );
+      if (!userInGroup) {
+        throw new ForbiddenException('Нет доступа к сообщению в группе!');
+      }
+    }
+  
+    // Проверка доступа в канале
+    else if (type === 'channel') {
+      const channel = messages[0].channel;
+      if (!channel) throw new NotFoundException('Канал не найден!');
+      const userInChannel = channel.members.some(
+        (member) => member.user.id === userId,
+      );
+      if (!userInChannel) {
+        throw new ForbiddenException('Нет доступа к сообщению в канале!');
+      }
+    }
+  
+    else if (type === 'chat') {
+      const chat = messages[0].chat;
+      if (!chat) throw new NotFoundException('Чат не найден!');
+      const isUserInChat = chat.user1.id === userId || chat.user2.id === userId;
+      if (!isUserInChat) {
+        throw new ForbiddenException('Нет доступа к сообщению в чате!');
+      }
+    }
+  
+    return messages;
   }
+  
 
   async readUser(id: number, userId: number) {
     const message = await this.prisma.message.findUnique({
