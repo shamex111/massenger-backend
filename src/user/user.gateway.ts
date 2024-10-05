@@ -116,7 +116,6 @@ export class UserGateway
       .emit(`set-status-online`, { userId, event });
   }
 
-  
   @SubscribeMessage('typing')
   handleTyping(dto: { type: TYPE; smthId: number; writersId: number }) {
     this.server.to(`${dto.type}_${dto.smthId}`).emit('typing', dto.writersId);

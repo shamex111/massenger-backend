@@ -152,7 +152,7 @@ export class UserService {
         },
       });
       this.updateLastOnline(id);
-      this.userGateway.changeOnline(user.id, 'offline');
+      this.userGateway.changeOnline(user.id, 'offline',);
     } else {
       await this.prisma.user.update({
         where: {
